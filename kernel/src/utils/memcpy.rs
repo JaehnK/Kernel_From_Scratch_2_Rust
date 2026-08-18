@@ -1,5 +1,4 @@
 #[no_mangle]
-#[allow(dead_code)]
 pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, i: usize) -> *mut u8 {
     let mut idx: usize = 0;
 
