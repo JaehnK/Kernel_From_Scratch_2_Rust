@@ -1,14 +1,13 @@
 #[no_mangle]
 #[repr(C, packed)]
 #[allow(dead_code)]
-pub unsafe extern "C" fn memset(ptr: *mut u8, c: u8, i: usize) -> *mut u8 {
+pub unsafe extern "C" fn memset(ptr: *mut u8, c: i32, i: usize) -> *mut u8 {
+    let byte = c as u8;
     let mut idx: usize = 0;
-    let start_ptr = ptr;
 
-    while (idx < i) {
-        *ptr = c;
+    while idx < i {
+        *ptr.add(idx) = byte;
         idx += 1;
-        ptr = ptr.add(1);
     }
-    start_ptr
+    ptr
 }
