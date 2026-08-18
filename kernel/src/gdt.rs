@@ -1,9 +1,17 @@
+#[allow(dead_code)]
 pub struct GlobalDescriptorTable {
     // GDT의 엔트리들을 저장할 배열
     entries: [Descriptor; 7],
 }
 
+impl GlobalDescriptorTable {
+    pub const fn new(entries: [Descriptor; 7]) -> Self {
+        GlobalDescriptorTable { entries }
+    }
+}
+
 #[repr(C, packed)]
+#[allow(dead_code)]
 pub struct Descriptor {
     // GDT 엔트리의 필드들을 정의
     limit_low: u16,  // 2바이트(0-15), limit의 하위 16비트
