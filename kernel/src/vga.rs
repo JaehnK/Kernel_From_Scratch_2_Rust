@@ -9,6 +9,12 @@ struct Cursor {
 }
 static mut CURSOR: Cursor = Cursor { col: 0, row: 0 };
 
+fn put_str(s: &str) {
+    for b in s.bytes() {
+        put_char(b);
+    }
+}
+
 fn put_char(c: u8) {
     match c {
         b'\n' => newline(),
