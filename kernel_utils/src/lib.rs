@@ -5,3 +5,5 @@ mod memcmp;
 mod memcpy;
 mod memmove;
 mod memset;
+
+pub use memmove::memmove;

@@ -9,19 +9,25 @@ struct Cursor {
 }
 static mut CURSOR: Cursor = Cursor { col: 0, row: 0 };
 
-fn put_str(s: &str) {
+pub fn put_str(s: &str) {
     for b in s.bytes() {
         put_char(b);
     }
 }
 
-fn put_char(c: u8) {
+pub fn put_char(c: u8) {
     match c {
         b'\n' => newline(),
         b'\r' => unsafe {
             CURSOR.col = 0;
         }, // carriage return
         _ => put_glyph(c),
+    }
+}
+
+pub fn put_bytes(c: &[u8]) {
+    for &b in c {
+        put_char(b);
     }
 }
 
