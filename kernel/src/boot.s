@@ -12,7 +12,7 @@
 .type _start, @function
 _start:
     mov $stack_top, %esp
-    call _main
+    call kernel_start
     cli
 1:  hlt
     jmp 1b

@@ -10,8 +10,8 @@ use crate::vga::*;
 use core::panic::PanicInfo;
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
-    put_str("Welcome to KFS2 kernel");
+pub extern "C" fn kernel_start() -> ! {
+    vga::put_str("Welcome to KFS2 kernel");
 
     loop {}
 }

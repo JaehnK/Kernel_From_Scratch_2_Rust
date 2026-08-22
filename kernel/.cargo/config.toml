@@ -1,6 +1,6 @@
 [unstable]
 build-std = ["core"]
-build-std-features = ["compiler-builtins-mem"]
+json-target-spec = true
 
 [build]
 target = "i386-kernel.json"
