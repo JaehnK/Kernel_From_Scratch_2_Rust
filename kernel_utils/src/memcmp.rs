@@ -1,4 +1,4 @@
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn memcmp(ptr1: *const u8, ptr2: *const u8, n: usize) -> i32 {
     let mut idx: usize = 0;
 
