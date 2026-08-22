@@ -85,6 +85,9 @@ pub fn vprintk(fmt: &str, args: &[Arg]) {
                     if let Some(Arg::Hex(v)) = args.get(arg_idx) {
                         let mut buf = [0u8; 32];
                         let s = utoa(*v, 16, &mut buf);
+                        for _ in 0..8usize.saturating_sub(s.len()) {
+                            vga::put_char(b'0');
+                        }
                         vga::put_bytes(s);
                     }
                     arg_idx += 1;
