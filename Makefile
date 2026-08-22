@@ -1,17 +1,24 @@
+# 루트 Makefile — 빌드 순서: boot.o(as) → cargo(rust) → kernel.bin → 이미지 설치 → qemu
+# nightly 전환은 rust-toolchain.toml이, -Z 플래그는 kernel/.cargo/config.toml이 담당
+
+KERNEL_DIR  := kernel
 TARGET      := i386-kernel
 KERNEL_BIN  := kernel.bin
-BUILD_BIN   := target/$(TARGET)/release/kernel
-IMG         := ../kfs.img
+BUILD_BIN   := $(KERNEL_DIR)/target/$(TARGET)/release/kernel
+IMG         := kfs.img
 MOUNT_POINT := /tmp/kfs_mount
 
-ASM_SRC     := src/boot.s
-ASM_OBJ     := src/boot.o
+ASM_SRC     := $(KERNEL_DIR)/src/boot.s
+ASM_OBJ     := $(KERNEL_DIR)/src/boot.o
+
+RUST_SRC    := $(wildcard $(KERNEL_DIR)/src/*.rs) $(wildcard kernel_utils/src/*.rs)
+BUILD_DEPS  := $(KERNEL_DIR)/src/linker.ld $(KERNEL_DIR)/build.rs \
+               $(KERNEL_DIR)/i386-kernel.json $(KERNEL_DIR)/Cargo.toml \
+               $(KERNEL_DIR)/.cargo/config.toml kernel_utils/Cargo.toml
 
 AS          := as
-CARGO       := cargo +nightly
-
 AS_FLAGS    := --32
-CARGO_FLAGS := --release -Zjson-target-spec
+CARGO_FLAGS := --release
 
 .PHONY: all build asm install run clean re
 
@@ -24,8 +31,8 @@ asm: $(ASM_OBJ)
 $(ASM_OBJ): $(ASM_SRC)
 	$(AS) $(AS_FLAGS) $< -o $@
 
-$(KERNEL_BIN): $(ASM_OBJ) src/main.rs src/linker.ld build.rs i386-kernel.json Cargo.toml .cargo/config.toml
-	$(CARGO) build $(CARGO_FLAGS)
+$(KERNEL_BIN): $(ASM_OBJ) $(RUST_SRC) $(BUILD_DEPS)
+	cd $(KERNEL_DIR) && cargo build $(CARGO_FLAGS)
 	cp $(BUILD_BIN) $@
 	grub-file --is-x86-multiboot $@
 
@@ -45,6 +52,6 @@ run: install
 
 clean:
 	rm -f $(ASM_OBJ) $(KERNEL_BIN)
-	$(CARGO) clean
+	cd $(KERNEL_DIR) && cargo clean
 
 re: clean all
