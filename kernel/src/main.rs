@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+mod dump_stack;
 mod gdt;
 mod printk;
 mod vga;
@@ -10,8 +11,19 @@ use crate::vga::*;
 use core::panic::PanicInfo;
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
-    put_str("hello world - kfs kernel");
+pub extern "C" fn kernel_start() -> ! {
+    vga::put_str("Welcome to KFS2 kernel");
+
+    printk::vprintk(
+        "%s: %p, %d%%\n",
+        &[
+            printk::Arg::Str("ESP"),
+            printk::Arg::Hex(0xdeadbeef),
+            printk::Arg::Int(-42),
+        ],
+    );
+
+    dump_stack::dump_stack();
 
     loop {}
 }
