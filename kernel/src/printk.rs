@@ -55,6 +55,10 @@ pub fn vprintk(fmt: &str, args: &[Arg]) {
             continue;
         } else {
             i += 1;
+            if i as usize >= bytes.len() {
+                break;
+            }
+
             let specifier = bytes[i];
             match specifier {
                 b'd' => {
@@ -74,8 +78,8 @@ pub fn vprintk(fmt: &str, args: &[Arg]) {
                         let mut buf = [0u8; 32];
                         let s = utoa(*v, 16, &mut buf);
                         vga::put_bytes(s);
-                        arg_idx += 1;
                     }
+                    arg_idx += 1;
                 }
                 b'p' => {
                     if let Some(Arg::Hex(v)) = args.get(arg_idx) {
@@ -88,14 +92,14 @@ pub fn vprintk(fmt: &str, args: &[Arg]) {
                 b's' => {
                     if let Some(Arg::Str(s)) = args.get(arg_idx) {
                         vga::put_str(s);
-                        arg_idx += 1;
                     }
+                    arg_idx += 1;
                 }
                 b'c' => {
                     if let Some(Arg::Char(v)) = args.get(arg_idx) {
-                        vga::put_char(*v as u8);
-                        arg_idx += 1;
+                        vga::put_char(*v);
                     }
+                    arg_idx += 1;
                 }
                 b'%' => vga::put_char(b'%'),
                 _ => {}
