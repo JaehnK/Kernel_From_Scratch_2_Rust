@@ -11,7 +11,7 @@ use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    put_str("hello world - kfs kernel");
+    put_str("Welcome to KFS2 kernel");
 
     loop {}
 }
