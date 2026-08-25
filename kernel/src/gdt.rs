@@ -1,3 +1,4 @@
+#[repr(C)]
 #[allow(dead_code)]
 pub struct GlobalDescriptorTable {
     // GDT의 엔트리들을 저장할 배열
@@ -54,3 +55,37 @@ impl Descriptor {
         }
     }
 }
+
+#[allow(dead_code)]
+mod access {
+    const PRESENT: u8 = 1 << 7; // 1: 세그먼트 존재, 0: 세그먼트 미존재 0x80
+
+    const DPL_RING0: u8 = 0 << 5; // 0: 커널 모드 0x00
+    const DPL_RING1: u8 = 1 << 5; // 1: 사용자 모드 0x20
+    const DPL_RING2: u8 = 2 << 5; // 2: 사용자 모드 0x40
+    const DPL_RING3: u8 = 3 << 5; // 3: 사용자 모드 0x60
+
+    const CODE_DATA: u8 = 1 << 4; // 0: 시스템 세그먼트, 1: 코드/데이터 세그먼트 0x10
+    const EXEC: u8 = 1 << 3; // 1: 실행 가능, 0: 실행 불가능 0x08
+    const DC: u8 = 1 << 2; // 데이터(E=0) → Direction: 0=expand-up, 1=expand-down
+                           //코드(E=1) → Conforming: 0=이 DPL에서만, 1=같거나 낮은 특권도 실행 가능
+    const RW: u8 = 1 << 1; // 데이터 세그먼트 - 1: 읽기/쓰기 가능, 0: 읽기 전용
+                           // 코드 세그먼트 - 1: 읽기 가능, 0: 읽기 불가능 0x02
+    const ACCESSED: u8 = 1 << 0; // 1: 접근됨, 0: 접근 안됨 0x01 -> OS 단에서 초기화 시 항상 0으로 설정
+}
+
+#[allow(dead_code)]
+mod flags {
+    const GRANULARITY: u8 = 1 << 3; // 1: 4KB 단위, 0: 바이트 단위 0x08
+    const SIZE: u8 = 1 << 2; // 1: 32비트, 0: 16비트 0x04
+    const LONG_MODE: u8 = 1 << 1; // 1: 64비트, 0: 32비트/16비트 0x02
+    const AVL: u8 = 1 << 0; // x86 아키텍처에서 CPU가 사용되지 비트, OS가 필요 시 자유롭게 사용
+
+    pub const FLAT_42BIT: u8 = GRANULARITY | SIZE; // 0x0C
+}
+
+const _: () = {
+    assert!(core::mem::size_of::<Descriptor>() == 8);
+};
+
+pub fn init_gdt() {}
