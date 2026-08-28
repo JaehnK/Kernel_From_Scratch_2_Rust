@@ -48,7 +48,8 @@ install: $(KERNEL_BIN)
 	echo ">>> Kernel installed"
 
 run: install
-	qemu-system-i386 -drive file=$(IMG),format=raw -display curses
+	qemu-system-i386 -drive file=$(IMG),format=raw -display curses \
+		-monitor unix:/tmp/qemu-mon,server,nowait -d int
 
 clean:
 	rm -f $(ASM_OBJ) $(KERNEL_BIN)

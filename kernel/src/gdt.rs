@@ -56,6 +56,15 @@ impl Descriptor {
     }
 }
 
+#[repr(C, packed)]
+struct Gdtr {
+    limit: u16,
+    base: u32,
+}
+
+// GDT 엔트리의 access byte에서 사용되는 플래그들을 정의
+// zero-cost abstraction을 위해 상수로 정의
+// zero-cost abstraction: 런타임에 오버헤드 없이 컴파일 타임에 상수로 치환되는 추상화
 #[allow(dead_code)]
 mod access {
     const PRESENT: u8 = 1 << 7; // 1: 세그먼트 존재, 0: 세그먼트 미존재 0x80
@@ -72,20 +81,72 @@ mod access {
     const RW: u8 = 1 << 1; // 데이터 세그먼트 - 1: 읽기/쓰기 가능, 0: 읽기 전용
                            // 코드 세그먼트 - 1: 읽기 가능, 0: 읽기 불가능 0x02
     const ACCESSED: u8 = 1 << 0; // 1: 접근됨, 0: 접근 안됨 0x01 -> OS 단에서 초기화 시 항상 0으로 설정
+
+    pub const KERNEL_CODE: u8 = PRESENT | DPL_RING0 | CODE_DATA | EXEC | RW; // 0x9A
+    pub const KERNEL_DATA: u8 = PRESENT | DPL_RING0 | CODE_DATA | RW; // 0x92
+    pub const KERNEL_STACK: u8 = PRESENT | DPL_RING0 | CODE_DATA | RW; // KERNEL_STACK == KERNEL_DATA
+
+    // 데이터와 스택이 동일한 이유
+    // x86에는 스택 전용 디스크립터 타입이 없다 — SS에 로드된 데이터 세그먼트가 곧 스택
+    // DC(expand-down)를 켜지 말 것 — flat에서는 limit이 경계가 아니라 무의미하고, 켜면 유효 범위가 공집합이 되어 #GP
+    // #GP : General Protection Fault, 일반 보호 오류
+    // 여러가지 상황(특권 위반, 잘못된 셀렉터, 세그먼트 제한 초과 등) 발생하는 예외
+
+    pub const USER_CODE: u8 = PRESENT | DPL_RING3 | CODE_DATA | EXEC | RW; // 0xFA
+    pub const USER_DATA: u8 = PRESENT | DPL_RING3 | CODE_DATA | RW; // 0xF2
+    pub const USER_STACK: u8 = PRESENT | DPL_RING3 | CODE_DATA | RW; // USER_STACK == USER_DATA
 }
 
+// GDT 엔트리의 limit flag 바이트에서 사용되는 플래그들을 정의
 #[allow(dead_code)]
 mod flags {
     const GRANULARITY: u8 = 1 << 3; // 1: 4KB 단위, 0: 바이트 단위 0x08
     const SIZE: u8 = 1 << 2; // 1: 32비트, 0: 16비트 0x04
     const LONG_MODE: u8 = 1 << 1; // 1: 64비트, 0: 32비트/16비트 0x02
-    const AVL: u8 = 1 << 0; // x86 아키텍처에서 CPU가 사용되지 비트, OS가 필요 시 자유롭게 사용
+    const AVL: u8 = 1 << 0; // x86 아키텍처에서 CPU가 사용하지 않는 비트, OS가 필요 시 자유롭게 사용
 
-    pub const FLAT_42BIT: u8 = GRANULARITY | SIZE; // 0x0C
+    pub const FLAT_32BIT: u8 = GRANULARITY | SIZE; // 0x0C
 }
 
 const _: () = {
-    assert!(core::mem::size_of::<Descriptor>() == 8);
+    assert!(
+        core::mem::size_of::<Descriptor>() == 8,
+        "Descriptor size must be 8 bytes"
+    );
+    assert!(access::KERNEL_CODE == 0x9A, "KERNEL_CODE must be 0x9A");
+    assert!(access::KERNEL_DATA == 0x92, "KERNEL_DATA must be 0x92");
+    assert!(access::USER_CODE == 0xFA, "USER_CODE must be 0xFA");
+    assert!(access::USER_DATA == 0xF2, "USER_DATA must be 0xF2");
+    assert!(flags::FLAT_32BIT == 0x0C, "FLAT_32BIT must be 0x0C");
+    assert!(access::KERNEL_STACK == access::KERNEL_DATA);
+    assert!(access::USER_STACK == access::USER_DATA);
+    assert!(
+        core::mem::size_of::<GlobalDescriptorTable>() == 56,
+        "GDT size must be 56 bytes"
+    );
 };
 
-pub fn init_gdt() {}
+pub fn init_gdt() {
+    let gdt = GlobalDescriptorTable::new([
+        Descriptor::new(0, 0, 0, 0), // Null descriptor
+        Descriptor::new(0, 0xFFFFF, access::KERNEL_CODE, flags::FLAT_32BIT), // Kernel code
+        Descriptor::new(0, 0xFFFFF, access::KERNEL_DATA, flags::FLAT_32BIT), // Kernel data
+        Descriptor::new(0, 0xFFFFF, access::KERNEL_STACK, flags::FLAT_32BIT), // Kernel stack
+        Descriptor::new(0, 0xFFFFF, access::USER_CODE, flags::FLAT_32BIT), // User code
+        Descriptor::new(0, 0xFFFFF, access::USER_DATA, flags::FLAT_32BIT), // User data
+        Descriptor::new(0, 0xFFFFF, access::USER_STACK, flags::FLAT_32BIT), // User stack
+    ]);
+
+    let gdtr = Gdtr {
+        limit: (core::mem::size_of::<GlobalDescriptorTable>() - 1) as u16,
+        base: 0x800,
+    };
+
+    unsafe {
+        core::ptr::write(0x800 as *mut GlobalDescriptorTable, gdt);
+        core::arch::asm!(
+            "lgdt [{0}]",
+            in(reg) &gdtr
+        )
+    };
+}

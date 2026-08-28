@@ -27,3 +27,5 @@ rustc-ice-*.txt
 **/sample
 **/sample/**
 subject.md
+kernel.bin
+kfs.img
