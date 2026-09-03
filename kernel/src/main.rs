@@ -13,6 +13,7 @@ use core::panic::PanicInfo;
 #[no_mangle]
 pub extern "C" fn kernel_start() -> ! {
     gdt::init_gdt();
+
     vga::put_str("Welcome to KFS2 kernel\n");
 
     printk::vprintk(

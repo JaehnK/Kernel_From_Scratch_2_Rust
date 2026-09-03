@@ -108,6 +108,21 @@ mod flags {
     pub const FLAT_32BIT: u8 = GRANULARITY | SIZE; // 0x0C
 }
 
+// 세그먼트 셀렉터 = GDT 인덱스 << 3 | TI | RPL
+// TI(bit 2): 0이면 GDT, 1이면 LDT. RPL(bit 1-0): 요청 특권 레벨
+// 인덱스는 init_gdt의 배열 순서와 반드시 일치해야 한다
+#[allow(dead_code)]
+mod selector {
+    pub const KERNEL_CODE: u16 = 1 << 3; // 0x08
+    pub const KERNEL_DATA: u16 = 2 << 3; // 0x10
+    pub const KERNEL_STACK: u16 = 3 << 3; // 0x18
+
+    // 링 3에 진입하지 않으므로 아직 로드하지 않는다. RPL을 3으로 둔다
+    pub const USER_CODE: u16 = (4 << 3) | 3; // 0x23
+    pub const USER_DATA: u16 = (5 << 3) | 3; // 0x2B
+    pub const USER_STACK: u16 = (6 << 3) | 3; // 0x33
+}
+
 const _: () = {
     assert!(
         core::mem::size_of::<Descriptor>() == 8,
@@ -124,6 +139,15 @@ const _: () = {
         core::mem::size_of::<GlobalDescriptorTable>() == 56,
         "GDT size must be 56 bytes"
     );
+    // packed를 빠뜨리면 limit 뒤에 패딩 2바이트가 들어가 8바이트가 되고,
+    // lgdt가 읽는 앞 6바이트에서 base가 어긋난다(0x800 -> 0x08000000)
+    assert!(
+        core::mem::size_of::<Gdtr>() == 6,
+        "Gdtr must be 6 bytes (packed)"
+    );
+    assert!(selector::KERNEL_CODE == 0x08, "KERNEL_CODE selector must be 0x08");
+    assert!(selector::KERNEL_DATA == 0x10, "KERNEL_DATA selector must be 0x10");
+    assert!(selector::KERNEL_STACK == 0x18, "KERNEL_STACK selector must be 0x18");
 };
 
 pub fn init_gdt() {
@@ -149,4 +173,41 @@ pub fn init_gdt() {
             in(reg) &gdtr
         )
     };
+
+    reload_segments();
+}
+
+// lgdt만으로는 새 GDT가 실제로 쓰이지 않는다.
+// CPU는 세그먼트 레지스터에 셀렉터를 넣는 순간에만 디스크립터를 읽어
+// 숨은 레지스터(hidden register)에 캐시하고, 이후에는 메모리를 다시 읽지 않는다.
+// 따라서 전부 다시 로드해야 GRUB이 캐시해둔 디스크립터가 우리 것으로 교체된다.
+//
+// base가 0(flat)이므로 SS를 바꿔도 ESP는 그대로 유효하다.
+fn reload_segments() {
+    unsafe {
+        // 세그먼트 레지스터에는 즉값을 직접 넣을 수 없어 ax를 경유한다.
+        // ax를 건드리므로 out("eax") _ 로 클로버를 알려야 한다.
+        core::arch::asm!(
+            "mov ax, {data}",
+            "mov ds, ax",
+            "mov es, ax",
+            "mov fs, ax",
+            "mov gs, ax",
+            "mov ax, {stack}",
+            "mov ss, ax",
+            data = const selector::KERNEL_DATA,
+            stack = const selector::KERNEL_STACK,
+            out("eax") _,
+        );
+
+        // CS는 mov로 바꿀 수 없고 far jump만이 방법이다.
+        // 바로 다음 라벨로 점프해 실행 흐름은 유지하면서 CS만 교체한다.
+        // asm! 안에서는 이름 있는 라벨이 금지되므로 숫자 라벨(2: / $2f)을 쓴다.
+        core::arch::asm!(
+            "ljmp ${sel}, $2f",
+            "2:",
+            sel = const selector::KERNEL_CODE,
+            options(att_syntax)
+        );
+    }
 }
