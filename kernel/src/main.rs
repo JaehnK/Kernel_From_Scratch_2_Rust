@@ -12,12 +12,14 @@ use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn kernel_start() -> ! {
-    vga::put_str("Welcome to KFS2 kernel");
+    gdt::init_gdt();
+
+    vga::put_str("Welcome to KFS2 kernel\n");
 
     printk::vprintk(
         "%s: %p, %d%%\n",
         &[
-            printk::Arg::Str("ESP"),
+            printk::Arg::Str("Print-test:"),
             printk::Arg::Hex(0xdeadbeef),
             printk::Arg::Int(-42),
         ],
