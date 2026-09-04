@@ -12,9 +12,10 @@ use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn kernel_start() -> ! {
-    // gdt::init_gdt();
+    gdt::init_gdt();
 
     // vga::put_str("Welcome to KFS2 kernel\n");
+    printk::vrpintk("%d", 42);
 
     // printk::vprintk(
     //     "%s: %p, %d%%\n",
@@ -25,8 +26,7 @@ pub extern "C" fn kernel_start() -> ! {
     //     ],
     // );
 
-    // dump_stack::dump_stack();
-    printk::vrpintk("%d", 42);
+    dump_stack::dump_stack();
 
     loop {}
 }
